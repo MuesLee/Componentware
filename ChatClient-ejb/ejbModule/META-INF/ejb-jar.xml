@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ejb-jar xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://xmlns.jcp.org/xml/ns/javaee" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/ejb-jar_3_2.xsd" version="3.2">
+  <enterprise-beans>
+    <session>
+      <ejb-name>UserSessionBean</ejb-name>
+      <env-entry>
+        <env-entry-name>hashAlgorithm</env-entry-name>
+        <env-entry-type>java.lang.String</env-entry-type>
+        <env-entry-value>SHA-1</env-entry-value>
+      </env-entry>
+    </session>
+  </enterprise-beans>
+  <ejb-client-jar>ChatClient-ejb.jar</ejb-client-jar>
+</ejb-jar>
