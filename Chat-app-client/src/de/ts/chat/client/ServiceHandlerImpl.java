@@ -4,10 +4,13 @@ import java.util.Date;
 import java.util.List;
 
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSConsumer;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
+import javax.jms.Queue;
+import javax.jms.TextMessage;
 import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -19,7 +22,6 @@ import de.fh_dortmund.inf.cw.chat.client.shared.UserSessionHandler;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessage;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessageType;
 import de.ts.chat.server.beans.interfaces.UserManagementRemote;
-import de.ts.chat.server.beans.interfaces.UserMessageRemote;
 import de.ts.chat.server.beans.interfaces.UserSessionRemote;
 
 public class ServiceHandlerImpl extends ServiceHandler implements
@@ -28,11 +30,11 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	private Context ctx;
 
 	private JMSContext jmsContext;
+	private Queue chatMessageQueue;
 	private Topic chatMessageTopic;
 
 	private UserManagementRemote userManagement;
 	private UserSessionRemote userSession;
-	private UserMessageRemote userMessage;
 
 	private static ServiceHandlerImpl instance;
 
@@ -44,8 +46,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserManagementBean!de.ts.chat.server.beans.interfaces.UserManagementRemote");
 			userSession = (UserSessionRemote) ctx
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserSessionBean!de.ts.chat.server.beans.interfaces.UserSessionRemote");
-			userMessage = (UserMessageRemote) ctx
-					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserMessageBean!de.ts.chat.server.beans.interfaces.UserMessageRemote");
+
+			initJMSConnection();
 		} catch (NamingException ex) {
 			System.err.println(ex.getMessage());
 		}
@@ -57,12 +59,37 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 					.lookup("java:comp/DefaultJMSConnectionFactory");
 
 			jmsContext = connectionFactory.createContext();
-
 			chatMessageTopic = (Topic) ctx
 					.lookup("java:global/jms/ChatMessageTopic");
-			jmsContext.createConsumer(chatMessageTopic)
-					.setMessageListener(this);
+
+			chatMessageQueue = (Queue) ctx
+					.lookup("java:global/jms/ChatMessageQueue");
+			// String selector = "(CHATMESSAGE_TYPE = "
+			// + ChatMessageType.DISCONNECT.ordinal()
+			// + " and CHATMESSAGE_SENDER = " + userSession.getUserName()
+			// + ") OR CHATMESSAGE_TYPE in ( "
+			// + ChatMessageType.TEXT.ordinal() + ")";
+			// JMSConsumer consumer =
+			// jmsContext.createConsumer(chatMessageTopic,
+			// selector);
+			JMSConsumer consumer = jmsContext.createConsumer(chatMessageTopic);
+			consumer.setMessageListener(this);
 		} catch (NamingException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void notifyViaChatMessageQueue(String messageText, String sender) {
+
+		try {
+			TextMessage message = jmsContext.createTextMessage();
+			message.setIntProperty("CHATMESSAGE_TYPE",
+					ChatMessageType.TEXT.ordinal());
+			message.setStringProperty("CHATMESSAGE_SENDER", sender);
+			message.setText(messageText);
+			message.setJMSDeliveryMode(Message.DEFAULT_DELIVERY_MODE);
+			jmsContext.createProducer().send(chatMessageQueue, message);
+		} catch (JMSException e) {
 			e.printStackTrace();
 		}
 	}
@@ -129,7 +156,13 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public void sendChatMessage(String message) {
-		userMessage.sendMessage(userSession.getUserName(), message);
+		message = cleanUpMessage(message);
+		notifyViaChatMessageQueue(message, userSession.getUserName());
+	}
+
+	private String cleanUpMessage(String message) {
+		// TODO Schimpfwort filter
+		return message;
 	}
 
 	@Override
@@ -139,22 +172,22 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 				return;
 			}
 
-			int chatMessageType = message.getIntProperty("CHATMESSAGE_TYPE");
+			TextMessage textMessage = (TextMessage) message;
+			ChatMessageType type;
 
-			String sender = message.getStringProperty("CHATMESSAGE_SENDER");
-			String text = message.getStringProperty("CHATMESSAGE_TEXT");
-			Date date = new Date(message.getJMSDeliveryTime());
+			type = ChatMessageType.getChatMessageType(textMessage
+					.getIntProperty("CHATMESSAGE_TYPE"));
+			String sender = textMessage.getStringProperty("CHATMESSAGE_SENDER");
+			String text = textMessage.getText();
+			Date date = new Date(textMessage.getJMSDeliveryTime());
 
-			if (chatMessageType == ChatMessageType.TEXT.ordinal()) {
-				setChanged();
-
-				ChatMessage chatMessage = new ChatMessage(ChatMessageType.TEXT,
-						sender, text, date);
-				notifyObservers(chatMessage);
-			}
-
+			ChatMessage chatMessage = new ChatMessage(type, sender, text, date);
+			setChanged();
+			notifyObservers(chatMessage);
 		} catch (JMSException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
 	}
 }

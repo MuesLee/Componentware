@@ -11,6 +11,11 @@
     <java>ChatClient-common.jar</java>
   </module>
   <jms-destination>
+    <name>java:global/jms/ChatMessageQueue</name>
+    <interface-name>javax.jms.Queue</interface-name>
+    <destination-name>ChatMessageQueue</destination-name>
+  </jms-destination>
+  <jms-destination>
     <name>java:global/jms/ChatMessageTopic</name>
     <interface-name>javax.jms.Topic</interface-name>
     <destination-name>ChatMessageTopic</destination-name>
