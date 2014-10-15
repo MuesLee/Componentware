@@ -46,7 +46,6 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			userSession = (UserSessionRemote) ctx
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserSessionBean!de.ts.chat.server.beans.interfaces.UserSessionRemote");
 
-			initJMSConnection();
 		} catch (NamingException ex) {
 			System.err.println(ex.getMessage());
 		}
@@ -63,27 +62,27 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 			chatMessageQueue = (Queue) ctx
 					.lookup("java:global/jms/ChatMessageQueue");
-			// String selector = "(CHATMESSAGE_TYPE = "
-			// + ChatMessageType.DISCONNECT.ordinal()
-			// + " and CHATMESSAGE_SENDER = " + userSession.getUserName()
-			// + ") OR CHATMESSAGE_TYPE in ( "
-			// + ChatMessageType.TEXT.ordinal() + ")";
-			// JMSConsumer consumer =
-			// jmsContext.createConsumer(chatMessageTopic,
-			// selector);
-			JMSConsumer consumer = jmsContext.createConsumer(chatMessageTopic);
+			String selector = "(CHATMESSAGE_TYPE = "
+					+ ChatMessageType.DISCONNECT.ordinal()
+					+ " and CHATMESSAGE_SENDER = " + userSession.getUserName()
+					+ ") OR CHATMESSAGE_TYPE = "
+					+ ChatMessageType.TEXT.ordinal()
+					+ " OR CHATMESSAGE_TYPE = "
+					+ ChatMessageType.LOGIN.ordinal();
+			JMSConsumer consumer = jmsContext.createConsumer(chatMessageTopic,
+					selector);
 			consumer.setMessageListener(this);
 		} catch (NamingException e) {
 			e.printStackTrace();
 		}
 	}
 
-	private void notifyViaChatMessageQueue(String messageText, String sender) {
+	private void notifyViaChatMessageQueue(String messageText, String sender,
+			ChatMessageType type) {
 
 		try {
 			Message message = jmsContext.createMessage();
-			message.setIntProperty("CHATMESSAGE_TYPE",
-					ChatMessageType.TEXT.ordinal());
+			message.setIntProperty("CHATMESSAGE_TYPE", type.ordinal());
 			message.setStringProperty("CHATMESSAGE_SENDER", sender);
 			message.setStringProperty("CHATMESSAGE_TEXT", messageText);
 			message.setJMSDeliveryMode(Message.DEFAULT_DELIVERY_MODE);
@@ -141,6 +140,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	@Override
 	public void login(String userName, String password) throws Exception {
 		userSession.login(userName, password);
+		initJMSConnection();
+		notifyViaChatMessageQueue("LOGIN!", userName, ChatMessageType.LOGIN);
 	}
 
 	@Override
@@ -156,7 +157,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	@Override
 	public void sendChatMessage(String message) {
 		message = cleanUpMessage(message);
-		notifyViaChatMessageQueue(message, userSession.getUserName());
+		notifyViaChatMessageQueue(message, userSession.getUserName(),
+				ChatMessageType.TEXT);
 	}
 
 	private String cleanUpMessage(String message) {
