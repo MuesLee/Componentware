@@ -10,7 +10,6 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
 import javax.jms.Queue;
-import javax.jms.TextMessage;
 import javax.jms.Topic;
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -82,11 +81,11 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	private void notifyViaChatMessageQueue(String messageText, String sender) {
 
 		try {
-			TextMessage message = jmsContext.createTextMessage();
+			Message message = jmsContext.createMessage();
 			message.setIntProperty("CHATMESSAGE_TYPE",
 					ChatMessageType.TEXT.ordinal());
 			message.setStringProperty("CHATMESSAGE_SENDER", sender);
-			message.setText(messageText);
+			message.setStringProperty("CHATMESSAGE_TEXT", messageText);
 			message.setJMSDeliveryMode(Message.DEFAULT_DELIVERY_MODE);
 			jmsContext.createProducer().send(chatMessageQueue, message);
 		} catch (JMSException e) {
@@ -172,14 +171,14 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 				return;
 			}
 
-			TextMessage textMessage = (TextMessage) message;
 			ChatMessageType type;
 
-			type = ChatMessageType.getChatMessageType(textMessage
+			type = ChatMessageType.getChatMessageType(message
 					.getIntProperty("CHATMESSAGE_TYPE"));
-			String sender = textMessage.getStringProperty("CHATMESSAGE_SENDER");
-			String text = textMessage.getText();
-			Date date = new Date(textMessage.getJMSDeliveryTime());
+
+			String sender = message.getStringProperty("CHATMESSAGE_SENDER");
+			String text = message.getStringProperty("CHATMESSAGE_TEXT");
+			Date date = new Date(message.getJMSTimestamp());
 
 			ChatMessage chatMessage = new ChatMessage(type, sender, text, date);
 			setChanged();
