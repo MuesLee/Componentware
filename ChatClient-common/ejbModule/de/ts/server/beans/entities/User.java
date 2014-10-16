@@ -1,5 +1,6 @@
 package de.ts.server.beans.entities;
 
+
 public class User {
 
 	private String name;
@@ -57,5 +58,4 @@ public class User {
 			return false;
 		return true;
 	}
-
 }

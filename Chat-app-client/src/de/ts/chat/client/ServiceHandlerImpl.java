@@ -18,15 +18,21 @@ import javax.naming.NamingException;
 
 import de.fh_dortmund.inf.cw.chat.client.shared.ChatMessageHandler;
 import de.fh_dortmund.inf.cw.chat.client.shared.ServiceHandler;
+import de.fh_dortmund.inf.cw.chat.client.shared.StatisticHandler;
 import de.fh_dortmund.inf.cw.chat.client.shared.UserSessionHandler;
+import de.fh_dortmund.inf.cw.chat.server.entities.CommonStatistic;
+import de.fh_dortmund.inf.cw.chat.server.entities.UserStatistic;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessage;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessageType;
 import de.ts.chat.server.beans.exception.MultipleLoginException;
+import de.ts.chat.server.beans.interfaces.CommonStatisticManagementRemote;
 import de.ts.chat.server.beans.interfaces.UserManagementRemote;
 import de.ts.chat.server.beans.interfaces.UserSessionRemote;
+import de.ts.chat.server.beans.interfaces.UserStatisticManagementRemote;
 
 public class ServiceHandlerImpl extends ServiceHandler implements
-		MessageListener, UserSessionHandler, ChatMessageHandler {
+		MessageListener, UserSessionHandler, ChatMessageHandler,
+		StatisticHandler {
 
 	private Context ctx;
 
@@ -36,6 +42,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	private UserManagementRemote userManagement;
 	private UserSessionRemote userSession;
+	private UserStatisticManagementRemote userStatistic;
+	private CommonStatisticManagementRemote commonStatistic;
 
 	private static ServiceHandlerImpl instance;
 
@@ -47,6 +55,10 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserManagementBean!de.ts.chat.server.beans.interfaces.UserManagementRemote");
 			userSession = (UserSessionRemote) ctx
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserSessionBean!de.ts.chat.server.beans.interfaces.UserSessionRemote");
+			userStatistic = (UserStatisticManagementRemote) ctx
+					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserStatisticManagementBean!de.ts.chat.server.beans.interfaces.UserStatisticRemote");
+			commonStatistic = (CommonStatisticManagementRemote) ctx
+					.lookup("java:global/ChatClient-ear/ChatClient-ejb/CommonStatisticManagementBean!de.ts.chat.server.beans.interfaces.CommonStatisticRemote");
 
 		} catch (NamingException ex) {
 			System.err.println(ex.getMessage());
@@ -248,5 +260,15 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			e.printStackTrace();
 		}
 
+	}
+
+	@Override
+	public List<CommonStatistic> getStatistics() {
+		return commonStatistic.getCommonStatistics();
+	}
+
+	@Override
+	public UserStatistic getUserStatistic() {
+		return userStatistic.getStatisticForUser(userSession.getUserName());
 	}
 }
