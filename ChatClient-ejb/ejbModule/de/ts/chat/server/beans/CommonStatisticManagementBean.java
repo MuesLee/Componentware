@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import javax.annotation.Resource;
+import javax.ejb.Schedule;
 import javax.ejb.Singleton;
+import javax.ejb.TimerService;
 
 import de.fh_dortmund.inf.cw.chat.server.entities.CommonStatistic;
 import de.ts.chat.server.beans.interfaces.CommonStatisticManagementLocal;
@@ -17,6 +20,9 @@ public class CommonStatisticManagementBean implements
 	private List<CommonStatistic> commonStatistics;
 	private CommonStatistic currentStatistic;
 
+	@Resource
+	private TimerService timerService;
+
 	public CommonStatisticManagementBean() {
 
 		this.commonStatistics = new ArrayList<>();
@@ -24,6 +30,7 @@ public class CommonStatisticManagementBean implements
 		this.currentStatistic.setStartingDate(new Date(System.nanoTime()));
 	}
 
+	@Schedule(minute = "0")
 	private void aggregateCurrentStatistic() {
 		currentStatistic.setEndDate(new Date(System.nanoTime()));
 		commonStatistics.add(currentStatistic);
