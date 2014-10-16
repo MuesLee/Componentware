@@ -63,13 +63,16 @@ public class UserManagementBean implements UserManagementLocal,
 	@Override
 	public void register(String name, String password) throws Exception {
 
+		for (User user : users) {
+			if (user.getName().equals(name)) {
+				throw new Exception("Username: " + name
+						+ " ist bereits vergeben");
+			}
+		}
+
 		String hashedPassword = UserSessionBean.generateHash(password);
 		User user = new User(name, hashedPassword);
-		if (users.contains(user)) {
-			throw new Exception("Username bereits vergeben");
-		} else {
-			users.add(user);
-		}
+		users.add(user);
 	}
 
 	@Override

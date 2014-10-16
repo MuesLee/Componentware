@@ -53,7 +53,7 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 		}
 	}
 
-	private void initJMSConnection() {
+	private void initJMSConnection(String userName) {
 		try {
 			ConnectionFactory connectionFactory = (ConnectionFactory) ctx
 					.lookup("java:comp/DefaultJMSConnectionFactory");
@@ -65,22 +65,29 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			chatMessageQueue = (Queue) ctx
 					.lookup("java:global/jms/ChatMessageQueue");
 
-			int ordinalDisconnect = ChatMessageType.DISCONNECT.ordinal();
-
-			String selector = "(CHATMESSAGE_TYPE = " + ordinalDisconnect
-					+ " and CHATMESSAGE_SENDER = " + userSession.getUserName()
-					+ ") OR CHATMESSAGE_TYPE <> " + ordinalDisconnect;
-
-			JMSConsumer consumer = jmsContext.createConsumer(chatMessageTopic,
-					selector);
-			consumer.setMessageListener(this);
 		} catch (NamingException e) {
 			e.printStackTrace();
 		}
 	}
 
+	private void subscribeConsumer() {
+		int ordinalDisconnect = ChatMessageType.DISCONNECT.ordinal();
+
+		String selector = "(CHATMESSAGE_TYPE = " + ordinalDisconnect
+				+ " and CHATMESSAGE_SENDER = \'" + userSession.getUserName()
+				+ "\') OR CHATMESSAGE_TYPE <> " + ordinalDisconnect;
+
+		JMSConsumer consumer = jmsContext.createConsumer(chatMessageTopic,
+				selector);
+		consumer.setMessageListener(this);
+	}
+
 	private void notifyViaChatMessageQueue(String messageText, String sender,
 			ChatMessageType type) {
+
+		if (jmsContext == null) {
+			initJMSConnection(sender);
+		}
 
 		try {
 			Message message = jmsContext.createMessage();
@@ -89,6 +96,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			message.setStringProperty("CHATMESSAGE_TEXT", messageText);
 			message.setJMSDeliveryMode(Message.DEFAULT_DELIVERY_MODE);
 			jmsContext.createProducer().send(chatMessageQueue, message);
+
+			// System.out.println("MESSAGE SENT: " + type);
 		} catch (JMSException e) {
 			e.printStackTrace();
 		}
@@ -114,7 +123,11 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public void disconnect() {
-		userSession.disconnect();
+		try {
+			userSession.disconnect();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -136,9 +149,6 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	@Override
 	public String getUserName() {
 
-		if (userSession == null) {
-			return "";
-		}
 		return userSession.getUserName();
 	}
 
@@ -147,15 +157,22 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 		try {
 			userSession.login(userName, password);
 		} catch (MultipleLoginException e) {
+
 			notifyViaChatMessageQueue("Disconnect", userName,
 					ChatMessageType.DISCONNECT);
+			throw e;
 		}
-		initJMSConnection();
 		notifyViaChatMessageQueue("LOGIN!", userName, ChatMessageType.LOGIN);
+		subscribeConsumer();
 	}
 
 	@Override
 	public void logout() throws Exception {
+
+		if (userSession.getUserName() == null) {
+			return;
+		}
+
 		notifyViaChatMessageQueue("Logout", userSession.getUserName(),
 				ChatMessageType.LOGOUT);
 		userSession.logout();
@@ -163,8 +180,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public void register(String name, String password) throws Exception {
-
 		userManagement.register(name, password);
+
 		notifyViaChatMessageQueue("Register", name, ChatMessageType.REGISTER);
 	}
 
@@ -187,13 +204,12 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 		meanWords.add("muschi");
 		meanWords.add("bastard");
 
-		String[] split = message.split(" ");
-		for (int i = 0; i < split.length; i++) {
+		String[] wordsInMessage = message.split(" ");
+		for (int i = 0; i < wordsInMessage.length; i++) {
 			for (String meanWord : meanWords) {
-				String lowerCaseWordToCheck = split[i].toLowerCase();
+				String lowerCaseWordToCheck = wordsInMessage[i].toLowerCase();
 				if (lowerCaseWordToCheck.equals(meanWord)) {
-					message = message.replaceAll(split[i], meanWord);
-					message = message.replaceAll(meanWord, "****");
+					message = message.replaceAll(wordsInMessage[i], "****");
 				}
 
 			}
@@ -215,6 +231,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			type = ChatMessageType.getChatMessageType(message
 					.getIntProperty("CHATMESSAGE_TYPE"));
 
+			// System.out.println("MESSAGE RECEIVED: " + type);
+
 			if (type == ChatMessageType.DISCONNECT) {
 				disconnect();
 			}
@@ -227,7 +245,6 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			setChanged();
 			notifyObservers(chatMessage);
 		} catch (JMSException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 

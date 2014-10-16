@@ -7,7 +7,7 @@ public interface UserSession {
 
 	public void changePassword(String oldPW, String newPW) throws Exception;
 
-	public void disconnect();
+	public void disconnect() throws Exception;
 
 	public String getUserName();
 

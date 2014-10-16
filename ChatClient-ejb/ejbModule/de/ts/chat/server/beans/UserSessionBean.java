@@ -66,14 +66,8 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 	}
 
 	@Override
-	public void disconnect() {
-		try {
-			logout();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
+	public void disconnect() throws Exception {
+		logout();
 	}
 
 	@Remove
@@ -91,7 +85,6 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 
 	@Override
 	public String getUserName() {
-		// TODO Auto-generated method stub
 		return user.getName();
 	}
 
