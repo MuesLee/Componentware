@@ -9,7 +9,8 @@ import javax.ejb.EJB;
 import javax.ejb.Remove;
 import javax.ejb.Stateful;
 
-import de.ts.chat.server.beans.exceptions.WrongPasswordException;
+import de.ts.chat.server.beans.exception.InvalidLoginException;
+import de.ts.chat.server.beans.exception.MultipleLoginException;
 import de.ts.chat.server.beans.interfaces.UserManagementLocal;
 import de.ts.chat.server.beans.interfaces.UserSessionLocal;
 import de.ts.chat.server.beans.interfaces.UserSessionRemote;
@@ -58,7 +59,7 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 
 		String hashOld = generateHash(oldPW);
 		if (!hashOld.equals(passwordHash)) {
-			throw new WrongPasswordException("Falsches Passwort!");
+			throw new InvalidLoginException("Falsches Passwort!");
 		}
 
 		user.setPasswordHash(generateHash(newPW));
@@ -66,6 +67,12 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 
 	@Override
 	public void disconnect() {
+		try {
+			logout();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 	}
 
@@ -75,7 +82,7 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 		String actualPasswordHash = user.getPasswordHash();
 		String givenPasswordHash = generateHash(password);
 		if (!actualPasswordHash.equals(givenPasswordHash)) {
-			throw new WrongPasswordException("Falsches Passwort!");
+			throw new InvalidLoginException("Falsches Passwort!");
 		} else {
 			userManagementLocal.delete(user);
 			disconnect();
@@ -91,11 +98,13 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 	@Remove
 	@Override
 	public void logout() throws Exception {
+		userManagementLocal.logout(user);
 
 	}
 
 	@Override
-	public void login(String userName, String password) throws Exception {
+	public void login(String userName, String password)
+			throws MultipleLoginException, InvalidLoginException {
 		user = userManagementLocal.login(userName, password);
 	}
 

@@ -9,4 +9,6 @@ public interface UserManagementLocal extends UserManagement {
 
 	void delete(User user);
 
+	void logout(User user);
+
 }

@@ -9,6 +9,8 @@ import java.util.Set;
 import javax.annotation.PostConstruct;
 import javax.ejb.Singleton;
 
+import de.ts.chat.server.beans.exception.InvalidLoginException;
+import de.ts.chat.server.beans.exception.MultipleLoginException;
 import de.ts.chat.server.beans.interfaces.UserManagementLocal;
 import de.ts.chat.server.beans.interfaces.UserManagementRemote;
 import de.ts.server.beans.entities.User;
@@ -71,14 +73,21 @@ public class UserManagementBean implements UserManagementLocal,
 	}
 
 	@Override
-	public User login(String userName, String password) throws Exception {
+	public User login(String userName, String password)
+			throws InvalidLoginException, MultipleLoginException {
 		String hashedPassword = UserSessionBean.generateHash(password);
 		User user = new User(userName, hashedPassword);
 		if (users.contains(user)) {
-			onlineUsers.add(user);
-			return user;
+			if (!onlineUsers.contains(user)) {
+				onlineUsers.add(user);
+				return user;
+			} else {
+				throw new MultipleLoginException(
+						"Sie sind bereits eingeloggt. Alle Sitzungen werden getrennt.");
+			}
+
 		} else {
-			throw new Exception(
+			throw new InvalidLoginException(
 					"Ungültige Kombination von Username und Passwort");
 		}
 	}
@@ -88,6 +97,11 @@ public class UserManagementBean implements UserManagementLocal,
 		users.remove(user);
 		onlineUsers.remove(user);
 
+	}
+
+	@Override
+	public void logout(User user) {
+		onlineUsers.remove(user);
 	}
 
 }

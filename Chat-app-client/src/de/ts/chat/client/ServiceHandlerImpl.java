@@ -1,5 +1,6 @@
 package de.ts.chat.client;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -20,6 +21,7 @@ import de.fh_dortmund.inf.cw.chat.client.shared.ServiceHandler;
 import de.fh_dortmund.inf.cw.chat.client.shared.UserSessionHandler;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessage;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessageType;
+import de.ts.chat.server.beans.exception.MultipleLoginException;
 import de.ts.chat.server.beans.interfaces.UserManagementRemote;
 import de.ts.chat.server.beans.interfaces.UserSessionRemote;
 
@@ -62,13 +64,13 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 			chatMessageQueue = (Queue) ctx
 					.lookup("java:global/jms/ChatMessageQueue");
-			String selector = "(CHATMESSAGE_TYPE = "
-					+ ChatMessageType.DISCONNECT.ordinal()
+
+			int ordinalDisconnect = ChatMessageType.DISCONNECT.ordinal();
+
+			String selector = "(CHATMESSAGE_TYPE = " + ordinalDisconnect
 					+ " and CHATMESSAGE_SENDER = " + userSession.getUserName()
-					+ ") OR CHATMESSAGE_TYPE = "
-					+ ChatMessageType.TEXT.ordinal()
-					+ " OR CHATMESSAGE_TYPE = "
-					+ ChatMessageType.LOGIN.ordinal();
+					+ ") OR CHATMESSAGE_TYPE <> " + ordinalDisconnect;
+
 			JMSConsumer consumer = jmsContext.createConsumer(chatMessageTopic,
 					selector);
 			consumer.setMessageListener(this);
@@ -122,7 +124,6 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public int getNumberOfRegisteredUsers() {
-		// TODO Auto-generated method stub
 		return userManagement.getNumberOfRegisteredUsers();
 	}
 
@@ -134,24 +135,37 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public String getUserName() {
+
+		if (userSession == null) {
+			return "";
+		}
 		return userSession.getUserName();
 	}
 
 	@Override
 	public void login(String userName, String password) throws Exception {
-		userSession.login(userName, password);
+		try {
+			userSession.login(userName, password);
+		} catch (MultipleLoginException e) {
+			notifyViaChatMessageQueue("Disconnect", userName,
+					ChatMessageType.DISCONNECT);
+		}
 		initJMSConnection();
 		notifyViaChatMessageQueue("LOGIN!", userName, ChatMessageType.LOGIN);
 	}
 
 	@Override
 	public void logout() throws Exception {
+		notifyViaChatMessageQueue("Logout", userSession.getUserName(),
+				ChatMessageType.LOGOUT);
 		userSession.logout();
 	}
 
 	@Override
 	public void register(String name, String password) throws Exception {
+
 		userManagement.register(name, password);
+		notifyViaChatMessageQueue("Register", name, ChatMessageType.REGISTER);
 	}
 
 	@Override
@@ -162,7 +176,30 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	}
 
 	private String cleanUpMessage(String message) {
-		// TODO Schimpfwort filter
+
+		List<String> meanWords = new ArrayList<>();
+		meanWords.add("fuck");
+		meanWords.add("fick");
+		meanWords.add("ficken");
+		meanWords.add("fucking");
+		meanWords.add("bitch");
+		meanWords.add("penis");
+		meanWords.add("muschi");
+		meanWords.add("bastard");
+
+		String[] split = message.split(" ");
+		for (int i = 0; i < split.length; i++) {
+			for (String meanWord : meanWords) {
+				String lowerCaseWordToCheck = split[i].toLowerCase();
+				if (lowerCaseWordToCheck.equals(meanWord)) {
+					message = message.replaceAll(split[i], meanWord);
+					message = message.replaceAll(meanWord, "****");
+				}
+
+			}
+
+		}
+
 		return message;
 	}
 
@@ -177,6 +214,10 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 			type = ChatMessageType.getChatMessageType(message
 					.getIntProperty("CHATMESSAGE_TYPE"));
+
+			if (type == ChatMessageType.DISCONNECT) {
+				disconnect();
+			}
 
 			String sender = message.getStringProperty("CHATMESSAGE_SENDER");
 			String text = message.getStringProperty("CHATMESSAGE_TEXT");
