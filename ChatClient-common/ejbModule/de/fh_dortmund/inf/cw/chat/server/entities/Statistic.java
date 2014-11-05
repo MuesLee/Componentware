@@ -1,6 +1,9 @@
 package de.fh_dortmund.inf.cw.chat.server.entities;
 
-public class Statistic {
+import java.io.Serializable;
+
+public class Statistic implements Serializable {
+	private static final long serialVersionUID = -3884213655072759667L;
 	private int logins;
 	private int logouts;
 	private int messages;

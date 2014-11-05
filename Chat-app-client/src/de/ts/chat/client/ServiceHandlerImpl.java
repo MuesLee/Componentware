@@ -55,10 +55,10 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserManagementBean!de.ts.chat.server.beans.interfaces.UserManagementRemote");
 			userSession = (UserSessionRemote) ctx
 					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserSessionBean!de.ts.chat.server.beans.interfaces.UserSessionRemote");
-			userStatistic = (UserStatisticManagementRemote) ctx
-					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserStatisticManagementBean!de.ts.chat.server.beans.interfaces.UserStatisticRemote");
 			commonStatistic = (CommonStatisticManagementRemote) ctx
-					.lookup("java:global/ChatClient-ear/ChatClient-ejb/CommonStatisticManagementBean!de.ts.chat.server.beans.interfaces.CommonStatisticRemote");
+					.lookup("java:global/ChatClient-ear/ChatClient-ejb/CommonStatisticManagementBean!de.ts.chat.server.beans.interfaces.CommonStatisticManagementRemote");
+			userStatistic = (UserStatisticManagementRemote) ctx
+					.lookup("java:global/ChatClient-ear/ChatClient-ejb/UserStatisticManagementBean!de.ts.chat.server.beans.interfaces.UserStatisticManagementRemote");
 
 		} catch (NamingException ex) {
 			System.err.println(ex.getMessage());
@@ -168,14 +168,16 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	public void login(String userName, String password) throws Exception {
 		try {
 			userSession.login(userName, password);
+			notifyViaChatMessageQueue("LOGIN!", userName, ChatMessageType.LOGIN);
+			subscribeConsumer();
+			userStatistic.userHasLoggedIn(getUserName());
+			commonStatistic.userHasLoggedIn();
 		} catch (MultipleLoginException e) {
 
 			notifyViaChatMessageQueue("Disconnect", userName,
 					ChatMessageType.DISCONNECT);
 			throw e;
 		}
-		notifyViaChatMessageQueue("LOGIN!", userName, ChatMessageType.LOGIN);
-		subscribeConsumer();
 	}
 
 	@Override
@@ -187,6 +189,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 		notifyViaChatMessageQueue("Logout", userSession.getUserName(),
 				ChatMessageType.LOGOUT);
+		userStatistic.userHasLoggedOut(getUserName());
+		commonStatistic.userHasLoggedOut();
 		userSession.logout();
 	}
 
@@ -200,8 +204,10 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 	@Override
 	public void sendChatMessage(String message) {
 		message = cleanUpMessage(message);
-		notifyViaChatMessageQueue(message, userSession.getUserName(),
-				ChatMessageType.TEXT);
+		final String userName = userSession.getUserName();
+		notifyViaChatMessageQueue(message, userName, ChatMessageType.TEXT);
+		userStatistic.userHasSendAMessage(userName);
+		commonStatistic.userHasSendAMessage();
 	}
 
 	private String cleanUpMessage(String message) {
@@ -269,6 +275,6 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public UserStatistic getUserStatistic() {
-		return userStatistic.getStatisticForUser(userSession.getUserName());
+		return userStatistic.getStatisticForUser(getUserName());
 	}
 }

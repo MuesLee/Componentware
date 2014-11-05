@@ -1,5 +1,7 @@
 package de.ts.chat.server.beans;
 
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,9 +16,11 @@ public class UserStatisticManagementBean implements
 		UserStatisticManagementLocal, UserStatisticManagementRemote {
 
 	private Map<String, UserStatistic> userStatistics;
+	private Calendar calendar;
 
 	public UserStatisticManagementBean() {
 		this.userStatistics = new HashMap<>(5);
+		this.calendar = new GregorianCalendar();
 	}
 
 	@Override
@@ -36,8 +40,13 @@ public class UserStatisticManagementBean implements
 	@Override
 	public void userHasLoggedIn(String user) {
 		UserStatistic userStatistic = userStatistics.get(user);
+		if (userStatistic == null) {
+			userStatistic = new UserStatistic();
+		}
+
 		int logins = userStatistic.getLogins();
 		userStatistic.setLogins(logins + 1);
+		userStatistic.setLastLogin(calendar.getTime());
 		userStatistics.put(user, userStatistic);
 
 	}
