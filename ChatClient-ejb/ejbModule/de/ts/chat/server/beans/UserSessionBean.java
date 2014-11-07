@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.Remove;
 import javax.ejb.Stateful;
@@ -31,9 +32,8 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 		// TODO Auto-generated constructor stub
 	}
 
-	// @Resource(name = "hashAlgorithm")
-	// TODO: Deployment Descriptor fixen
-	private static String hashAlgorithm = "SHA-1";
+	@Resource
+	private static String hashAlgorithm;
 
 	public static String generateHash(String plaintext) {
 
@@ -79,12 +79,15 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 			throw new InvalidLoginException("Falsches Passwort!");
 		} else {
 			userManagementLocal.delete(user);
-			disconnect();
+			remove();
 		}
 	}
 
 	@Override
 	public String getUserName() {
+		if (user == null)
+			return "";
+
 		return user.getName();
 	}
 
@@ -92,7 +95,6 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 	@Override
 	public void logout() throws Exception {
 		userManagementLocal.logout(user);
-
 	}
 
 	@Override

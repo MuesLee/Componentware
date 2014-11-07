@@ -2,6 +2,7 @@ package de.ts.chat.server.beans;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -25,6 +26,7 @@ import javax.jms.Topic;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
 import javax.persistence.NoResultException;
 import javax.persistence.NonUniqueResultException;
 import javax.persistence.PersistenceContext;
@@ -56,10 +58,12 @@ public class CommonStatisticManagementBean implements
 	public CommonStatisticManagementBean() {
 	}
 
-	private void createTimer() {
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+	void createTimer() {
 		boolean timerActive = false;
 
-		for (Timer timer : timerService.getTimers()) {
+		Collection<Timer> timers = timerService.getAllTimers();
+		for (Timer timer : timers) {
 			if (timer.getInfo() == COMMON_STATISTC_SENDER_TIMER) {
 				timerActive = true;
 				break;
@@ -87,8 +91,22 @@ public class CommonStatisticManagementBean implements
 
 		log.info("Halbstuendlicher Stat-Versand beginnt: "
 				+ initStartCal.getTime() + "");
-		timerService.createIntervalTimer(initStartCal.getTime(),
-				intervalOneHour, timerConfig);
+		Timer createdIntervalTimer = timerService.createIntervalTimer(
+				initStartCal.getTime(), intervalOneHour, timerConfig);
+
+		log.info("Timer: " + createdIntervalTimer.getInfo()
+				+ " wurde erstellt und wird dann klingeln: "
+				+ createdIntervalTimer.getNextTimeout());
+
+		String timerInfo = "";
+		timers = timerService.getTimers();
+		for (Timer timer : timers) {
+			timerInfo = timerInfo + "Timer: " + timer.getInfo() + " klingelt: "
+					+ timer.getNextTimeout() + "\n";
+		}
+
+		log.info("Aktuell sind " + timers.size() + " Timer aktiv:\n"
+				+ timerInfo);
 	}
 
 	@Schedule(minute = "0", hour = "*")
@@ -96,12 +114,14 @@ public class CommonStatisticManagementBean implements
 	public void aggregateCurrentStatistic() {
 		CommonStatistic currentStatistic = getCurrentStatistic();
 		Calendar cal = new GregorianCalendar();
+		currentStatistic = entityManager.merge(currentStatistic);
+		entityManager.lock(currentStatistic, LockModeType.PESSIMISTIC_WRITE);
 
 		currentStatistic.setEndDate(cal.getTime());
 
 		entityManager.merge(currentStatistic);
 		entityManager.flush();
-		sendStatistics(null);
+		sendStatistics(currentStatistic);
 
 		currentStatistic = new CommonStatistic();
 		entityManager.persist(currentStatistic);
@@ -109,7 +129,7 @@ public class CommonStatisticManagementBean implements
 		log.info("Allgemeine Statistiken wurden zusammengefasst und eine neue Statistik wurde angelegt.");
 	}
 
-	@TransactionAttribute(TransactionAttributeType.REQUIRED)
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public CommonStatistic getCurrentStatistic() {
 
 		TypedQuery<CommonStatistic> createNamedQuery = entityManager
@@ -123,13 +143,14 @@ public class CommonStatisticManagementBean implements
 		} catch (NoResultException e) {
 			createTimer();
 			currentStatistic = new CommonStatistic();
+			entityManager.persist(currentStatistic);
 			log.info("Es existierte bisher keine allgemeine Statistik. Eine neue wurde angelegt.");
 			;
 		} catch (NonUniqueResultException e) {
 			List<CommonStatistic> resultList = createNamedQuery.getResultList();
 			for (CommonStatistic commonStatistic : resultList) {
+				entityManager.persist(commonStatistic);
 				commonStatistic.setEndDate(new GregorianCalendar().getTime());
-				entityManager.merge(commonStatistic);
 			}
 
 			currentStatistic = new CommonStatistic();
@@ -145,19 +166,25 @@ public class CommonStatisticManagementBean implements
 	}
 
 	@Timeout
-	public void sendStatistics(Timer timer) {
-		if (timer != null) {
-			if (timer.getInfo() != COMMON_STATISTC_SENDER_TIMER) {
-				return;
-			}
-		}
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+	public void timeout(Timer timer) {
 
+		if (!timer.getInfo().equals(COMMON_STATISTC_SENDER_TIMER)) {
+			return;
+		}
+		log.info("Timeout called!");
+
+		sendStatistics(getCurrentStatistic());
+
+	}
+
+	private void sendStatistics(CommonStatistic commonStatistic) {
 		try {
 			InitialContext ctx = new InitialContext();
 			Topic chatMessageTopic = (Topic) ctx
 					.lookup("java:global/jms/ChatMessageTopic");
 
-			String messageText = getMessageTextForCurrentStatistic();
+			String messageText = getMessageTextForCurrentStatistic(commonStatistic);
 
 			Message message = jmsContext.createMessage();
 			message.setIntProperty("CHATMESSAGE_TYPE",
@@ -176,17 +203,15 @@ public class CommonStatisticManagementBean implements
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 	}
 
-	private String getMessageTextForCurrentStatistic() {
-
-		CommonStatistic stat = getCurrentStatistic();
+	private String getMessageTextForCurrentStatistic(
+			CommonStatistic commonStatistic) {
 
 		SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
 
-		Date startDate = stat.getStartingDate();
-		Date endDate = stat.getEndDate();
+		Date startDate = commonStatistic.getStartingDate();
+		Date endDate = commonStatistic.getEndDate();
 		if (endDate == null) {
 			Calendar cal = new GregorianCalendar();
 			endDate = cal.getTime();
@@ -194,9 +219,10 @@ public class CommonStatisticManagementBean implements
 
 		String text = "Statistik von " + sdf.format(startDate) + " Uhr bis "
 				+ sdf.format(endDate) + " Uhr\nAnzahl der Anmeldungen: "
-				+ stat.getLogins() + "\nAnzahl der Abmeldungen: "
-				+ stat.getLogouts()
-				+ "\nAnzahl der geschriebenen Nachrichten: " + stat.getLogins();
+				+ commonStatistic.getLogins() + "\nAnzahl der Abmeldungen: "
+				+ commonStatistic.getLogouts()
+				+ "\nAnzahl der geschriebenen Nachrichten: "
+				+ commonStatistic.getLogins();
 
 		return text;
 	}
@@ -212,6 +238,7 @@ public class CommonStatisticManagementBean implements
 		return resultList;
 	}
 
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void userHasSendAMessage() {
 
 		CommonStatistic currentStatistic = getCurrentStatistic();
@@ -223,8 +250,8 @@ public class CommonStatisticManagementBean implements
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void userHasLoggedIn() {
-
 		CommonStatistic currentStatistic = getCurrentStatistic();
 		int logins = currentStatistic.getLogins();
 
@@ -233,6 +260,7 @@ public class CommonStatisticManagementBean implements
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void userHasLoggedOut() {
 
 		CommonStatistic currentStatistic = getCurrentStatistic();

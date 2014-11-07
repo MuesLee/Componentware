@@ -130,6 +130,8 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public void delete(String password) throws Exception {
+		notifyViaChatMessageQueue("Deleted", getUserName()
+				+ " hat seinen Account gelöscht und", ChatMessageType.LOGOUT);
 		userSession.delete(password);
 	}
 
@@ -187,7 +189,7 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			return;
 		}
 
-		notifyViaChatMessageQueue("Logout", userSession.getUserName(),
+		notifyViaChatMessageQueue("Logout", getUserName(),
 				ChatMessageType.LOGOUT);
 		userStatistic.userHasLoggedOut(getUserName());
 		commonStatistic.userHasLoggedOut();
@@ -248,8 +250,6 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 			type = ChatMessageType.getChatMessageType(message
 					.getIntProperty("CHATMESSAGE_TYPE"));
-
-			// System.out.println("MESSAGE RECEIVED: " + type);
 
 			if (type == ChatMessageType.DISCONNECT) {
 				disconnect();

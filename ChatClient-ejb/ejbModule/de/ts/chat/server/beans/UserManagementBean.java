@@ -8,6 +8,7 @@ import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
@@ -23,8 +24,8 @@ import de.ts.server.beans.entities.ChatUser;
 public class UserManagementBean implements UserManagementLocal,
 		UserManagementRemote, Serializable {
 
-	private static final Logger log = Logger
-			.getLogger(CommonStatisticManagementBean.class.getName());
+	private static final Logger log = Logger.getLogger(UserManagementBean.class
+			.getName());
 
 	private static final long serialVersionUID = -8960059270336029913L;
 
@@ -35,6 +36,7 @@ public class UserManagementBean implements UserManagementLocal,
 		// TODO Auto-generated constructor stub
 	}
 
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public List<ChatUser> getUsers() {
 		TypedQuery<ChatUser> createNamedQuery = entityManager.createNamedQuery(
 				"getAllUser", ChatUser.class);
@@ -42,6 +44,7 @@ public class UserManagementBean implements UserManagementLocal,
 		return resultList;
 	}
 
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public List<String> getOnlineUsers() {
 
 		Query createNamedQuery = entityManager
@@ -53,6 +56,7 @@ public class UserManagementBean implements UserManagementLocal,
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public int getNumberOfOnlineUsers() {
 		Query createNamedQuery = entityManager
 				.createNamedQuery("getNumberOfOnlineUser");
@@ -61,6 +65,7 @@ public class UserManagementBean implements UserManagementLocal,
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public int getNumberOfRegisteredUsers() {
 		// TODO Auto-generated method stub
 		Query createNamedQuery = entityManager
@@ -91,6 +96,7 @@ public class UserManagementBean implements UserManagementLocal,
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public ChatUser login(String userName, String password)
 			throws InvalidLoginException, MultipleLoginException {
 		log.info("Loginversuch für Benutzer: " + userName);
@@ -125,17 +131,25 @@ public class UserManagementBean implements UserManagementLocal,
 	@Override
 	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void delete(ChatUser user) {
-		log.info("Löschanfrage für " + user);
+		log.info("Löschanfrage für " + user.getName());
+		user = entityManager.find(ChatUser.class, user.getName(),
+				LockModeType.PESSIMISTIC_WRITE);
 		entityManager.remove(user);
 		entityManager.flush();
 		log.info("Löschung des Users " + user + " erfolgreich");
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void logout(ChatUser user) {
-		user.setOnline(false);
-		entityManager.merge(user);
+		log.info("User " + user.getName() + " will sich ausloggen.");
+		ChatUser derp = entityManager.find(ChatUser.class, user.getName(),
+				LockModeType.PESSIMISTIC_WRITE);
+		derp.setOnline(false);
+		entityManager.merge(derp);
+
 		entityManager.flush();
+		log.info("User " + derp.getName() + " hat sich ausgeloggt");
 
 	}
 
