@@ -189,11 +189,11 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 			return;
 		}
 
-		notifyViaChatMessageQueue("Logout", getUserName(),
-				ChatMessageType.LOGOUT);
-		userStatistic.userHasLoggedOut(getUserName());
+		final String userName = getUserName();
+		userStatistic.userHasLoggedOut(userName);
 		commonStatistic.userHasLoggedOut();
 		userSession.logout();
+		notifyViaChatMessageQueue("Logout", userName, ChatMessageType.LOGOUT);
 	}
 
 	@Override
