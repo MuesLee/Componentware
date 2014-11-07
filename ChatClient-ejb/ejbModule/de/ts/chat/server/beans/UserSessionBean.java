@@ -14,7 +14,7 @@ import de.ts.chat.server.beans.exception.MultipleLoginException;
 import de.ts.chat.server.beans.interfaces.UserManagementLocal;
 import de.ts.chat.server.beans.interfaces.UserSessionLocal;
 import de.ts.chat.server.beans.interfaces.UserSessionRemote;
-import de.ts.server.beans.entities.User;
+import de.ts.server.beans.entities.ChatUser;
 
 @Stateful
 public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
@@ -22,7 +22,7 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 
 	private static final long serialVersionUID = -8902107191952463029L;
 
-	private User user;
+	private ChatUser user;
 
 	@EJB
 	private UserManagementLocal userManagementLocal;

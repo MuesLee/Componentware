@@ -1,88 +1,104 @@
 package de.ts.chat.server.beans;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import javax.annotation.PostConstruct;
-import javax.ejb.Singleton;
+import javax.ejb.Stateless;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
+import de.fh_dortmund.inf.cw.chat.server.entities.UserStatistic;
 import de.ts.chat.server.beans.exception.InvalidLoginException;
 import de.ts.chat.server.beans.exception.MultipleLoginException;
 import de.ts.chat.server.beans.interfaces.UserManagementLocal;
 import de.ts.chat.server.beans.interfaces.UserManagementRemote;
-import de.ts.server.beans.entities.User;
+import de.ts.server.beans.entities.ChatUser;
 
-@Singleton
+@Stateless
 public class UserManagementBean implements UserManagementLocal,
 		UserManagementRemote, Serializable {
 
 	private static final long serialVersionUID = -8960059270336029913L;
 
-	private Set<User> users;
-	private Set<User> onlineUsers;
-
-	@PostConstruct
-	private void init() {
-		users = new HashSet<User>(3);
-		onlineUsers = new HashSet<User>(2);
-	}
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	public UserManagementBean() {
 		// TODO Auto-generated constructor stub
 	}
 
-	public Set<User> getUsers() {
-		return users;
+	public List<ChatUser> getUsers() {
+		TypedQuery<ChatUser> createNamedQuery = entityManager.createNamedQuery(
+				"getAllUser", ChatUser.class);
+		List<ChatUser> resultList = createNamedQuery.getResultList();
+		return resultList;
 	}
 
 	public List<String> getOnlineUsers() {
-		List<String> userNames = new ArrayList<String>();
 
-		for (User user : onlineUsers) {
-			userNames.add(user.getName());
-		}
+		Query createNamedQuery = entityManager
+				.createNamedQuery("getNameOfOnlineUser");
+		@SuppressWarnings("unchecked")
+		List<String> resultList = createNamedQuery.getResultList();
 
-		return userNames;
+		return resultList;
 	}
 
 	@Override
 	public int getNumberOfOnlineUsers() {
-		// TODO Auto-generated method stub
-		return onlineUsers.size();
+		Query createNamedQuery = entityManager
+				.createNamedQuery("getNumberOfOnlineUser");
+		Long number = (long) createNamedQuery.getSingleResult();
+		return number.intValue();
 	}
 
 	@Override
 	public int getNumberOfRegisteredUsers() {
 		// TODO Auto-generated method stub
-		return users.size();
+		Query createNamedQuery = entityManager
+				.createNamedQuery("getNumberOfAllUser");
+		Long number = (long) createNamedQuery.getSingleResult();
+		return number.intValue();
 	}
 
 	@Override
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void register(String name, String password) throws Exception {
 
-		for (User user : users) {
-			if (user.getName().equals(name)) {
-				throw new Exception("Username: " + name
-						+ " ist bereits vergeben");
-			}
+		ChatUser user = entityManager.find(ChatUser.class, name);
+		if (user != null) {
+			throw new Exception("Username: " + name + " ist bereits vergeben");
 		}
 
 		String hashedPassword = UserSessionBean.generateHash(password);
-		User user = new User(name, hashedPassword);
-		users.add(user);
+		user = new ChatUser(name, hashedPassword);
+		user.setUserStatistic(new UserStatistic());
+
+		entityManager.persist(user);
+		entityManager.flush();
 	}
 
 	@Override
-	public User login(String userName, String password)
+	public ChatUser login(String userName, String password)
 			throws InvalidLoginException, MultipleLoginException {
 		String hashedPassword = UserSessionBean.generateHash(password);
-		User user = new User(userName, hashedPassword);
-		if (users.contains(user)) {
-			if (!onlineUsers.contains(user)) {
-				onlineUsers.add(user);
+		ChatUser user = entityManager.find(ChatUser.class, userName);
+
+		if (user != null) {
+
+			if (!user.getPasswordHash().equals(hashedPassword)) {
+				throw new InvalidLoginException(
+						"Ungültige Kombination von Username und Passwort");
+			}
+
+			if (!user.isOnline()) {
+				user.setOnline(true);
+				entityManager.merge(user);
+				entityManager.flush();
 				return user;
 			} else {
 				throw new MultipleLoginException(
@@ -96,15 +112,19 @@ public class UserManagementBean implements UserManagementLocal,
 	}
 
 	@Override
-	public void delete(User user) {
-		users.remove(user);
-		onlineUsers.remove(user);
+	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+	public void delete(ChatUser user) {
 
+		entityManager.remove(user);
+		entityManager.flush();
 	}
 
 	@Override
-	public void logout(User user) {
-		onlineUsers.remove(user);
+	public void logout(ChatUser user) {
+		user.setOnline(false);
+		entityManager.merge(user);
+		entityManager.flush();
+
 	}
 
 }
