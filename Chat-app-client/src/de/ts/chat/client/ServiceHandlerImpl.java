@@ -130,9 +130,10 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 	@Override
 	public void delete(String password) throws Exception {
-		notifyViaChatMessageQueue("Deleted", getUserName()
-				+ " hat seinen Account gelöscht und", ChatMessageType.LOGOUT);
+		String name = getUserName();
 		userSession.delete(password);
+		notifyViaChatMessageQueue("Deleted", name
+				+ " hat seinen Account gelöscht und", ChatMessageType.LOGOUT);
 	}
 
 	@Override
