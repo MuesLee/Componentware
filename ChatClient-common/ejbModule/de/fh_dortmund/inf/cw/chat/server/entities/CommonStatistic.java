@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 import javax.persistence.Entity;
+import javax.persistence.LockModeType;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Temporal;
@@ -11,7 +12,7 @@ import javax.persistence.TemporalType;
 
 @Entity
 @NamedQueries({
-		@NamedQuery(name = "getCurrentCommonStatistic", query = "SELECT s FROM CommonStatistic AS s WHERE s.endDate is null"),
+		@NamedQuery(name = "getCurrentCommonStatistic", query = "SELECT s FROM CommonStatistic AS s WHERE s.endDate is null", lockMode = LockModeType.PESSIMISTIC_WRITE),
 		@NamedQuery(name = "getAllCommonStatistics", query = "SELECT s FROM CommonStatistic AS s WHERE s.endDate is not null") })
 public class CommonStatistic extends Statistic {
 

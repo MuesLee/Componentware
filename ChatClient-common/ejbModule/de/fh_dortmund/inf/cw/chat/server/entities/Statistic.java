@@ -3,16 +3,16 @@ package de.fh_dortmund.inf.cw.chat.server.entities;
 import java.io.Serializable;
 
 import javax.persistence.Column;
-import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Inheritance;
 import javax.persistence.InheritanceType;
+import javax.persistence.MappedSuperclass;
 
-@Entity
+@MappedSuperclass
 @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
-public class Statistic implements Serializable {
+public abstract class Statistic extends AbstractEntity implements Serializable {
 	private static final long serialVersionUID = -3884213655072759667L;
 
 	@Id

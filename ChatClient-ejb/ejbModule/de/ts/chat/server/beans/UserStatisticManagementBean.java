@@ -1,6 +1,8 @@
 package de.ts.chat.server.beans;
 
 import java.util.GregorianCalendar;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
@@ -16,6 +18,9 @@ import de.ts.chat.server.beans.interfaces.UserStatisticManagementRemote;
 public class UserStatisticManagementBean implements
 		UserStatisticManagementLocal, UserStatisticManagementRemote {
 
+	private static final Logger log = Logger
+			.getLogger(UserStatisticManagementBean.class.getName());
+
 	public UserStatisticManagementBean() {
 	}
 
@@ -25,6 +30,8 @@ public class UserStatisticManagementBean implements
 	@Override
 	public UserStatistic getStatisticForUser(String userName) {
 
+		log.log(Level.FINER, "Die Benutzerstatistik von " + userName
+				+ " wurde angefordert.");
 		TypedQuery<UserStatistic> createNamedQuery = entityManager
 				.createNamedQuery("getStatisticForChatUser",
 						UserStatistic.class);
@@ -40,11 +47,18 @@ public class UserStatisticManagementBean implements
 			entityManager.flush();
 		}
 
+		log.log(Level.FINER, "Die Benutzerstatistik von " + userName
+				+ " wurde ausgeliefert.");
+
 		return userStatistic;
 	}
 
 	@Override
 	public void userHasSendAMessage(String userName) {
+
+		log.log(Level.FINEST, "Der Benutzer " + userName
+				+ " hat eine Nachricht geschrieben.");
+
 		UserStatistic userStatistic = getStatisticForUser(userName);
 
 		int sentMessages = userStatistic.getMessages();
@@ -52,10 +66,14 @@ public class UserStatisticManagementBean implements
 
 		entityManager.merge(userStatistic);
 		entityManager.flush();
+		log.log(Level.FINEST, "Die Nachricht des Benutzers " + userName
+				+ " ist in die Statistik eingeflossen.");
 	}
 
 	@Override
 	public void userHasLoggedIn(String userName) {
+		log.log(Level.FINEST, "Der Benutzer " + userName
+				+ " hat sich eingeloggt.");
 		UserStatistic userStatistic = getStatisticForUser(userName);
 
 		int logins = userStatistic.getLogins();
@@ -64,17 +82,23 @@ public class UserStatisticManagementBean implements
 
 		entityManager.merge(userStatistic);
 		entityManager.flush();
+		log.log(Level.FINEST, "Der Login des Benutzers " + userName
+				+ " ist in die Statistik eingeflossen.");
 
 	}
 
 	@Override
 	public void userHasLoggedOut(String userName) {
+		log.log(Level.FINEST, "Der Benutzer " + userName
+				+ " hat sich ausgeloggt.");
 		UserStatistic userStatistic = getStatisticForUser(userName);
 		int logouts = userStatistic.getLogouts();
 		userStatistic.setLogouts(logouts + 1);
 
 		entityManager.merge(userStatistic);
 		entityManager.flush();
+		log.log(Level.FINEST, "Der Logout des Benutzers " + userName
+				+ " ist in die Statistik eingeflossen.");
 	}
 
 }

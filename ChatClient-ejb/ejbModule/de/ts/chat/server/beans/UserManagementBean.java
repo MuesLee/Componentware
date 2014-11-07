@@ -2,6 +2,7 @@ package de.ts.chat.server.beans;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
@@ -21,6 +22,9 @@ import de.ts.server.beans.entities.ChatUser;
 @Stateless
 public class UserManagementBean implements UserManagementLocal,
 		UserManagementRemote, Serializable {
+
+	private static final Logger log = Logger
+			.getLogger(CommonStatisticManagementBean.class.getName());
 
 	private static final long serialVersionUID = -8960059270336029913L;
 
@@ -69,6 +73,8 @@ public class UserManagementBean implements UserManagementLocal,
 	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void register(String name, String password) throws Exception {
 
+		log.info("Registrierungsversuch für Benutzer: " + name);
+
 		ChatUser user = entityManager.find(ChatUser.class, name);
 		if (user != null) {
 			throw new Exception("Username: " + name + " ist bereits vergeben");
@@ -80,11 +86,14 @@ public class UserManagementBean implements UserManagementLocal,
 
 		entityManager.persist(user);
 		entityManager.flush();
+		log.info("Registrierung erfolgreich für Benutzer: " + name);
+
 	}
 
 	@Override
 	public ChatUser login(String userName, String password)
 			throws InvalidLoginException, MultipleLoginException {
+		log.info("Loginversuch für Benutzer: " + userName);
 		String hashedPassword = UserSessionBean.generateHash(password);
 		ChatUser user = entityManager.find(ChatUser.class, userName);
 
@@ -99,6 +108,8 @@ public class UserManagementBean implements UserManagementLocal,
 				user.setOnline(true);
 				entityManager.merge(user);
 				entityManager.flush();
+
+				log.info("Login erfolgreich für Benutzer: " + userName);
 				return user;
 			} else {
 				throw new MultipleLoginException(
@@ -114,9 +125,10 @@ public class UserManagementBean implements UserManagementLocal,
 	@Override
 	@TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
 	public void delete(ChatUser user) {
-
+		log.info("Löschanfrage für " + user);
 		entityManager.remove(user);
 		entityManager.flush();
+		log.info("Löschung des Users " + user + " erfolgreich");
 	}
 
 	@Override

@@ -11,6 +11,7 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToOne;
 
+import de.fh_dortmund.inf.cw.chat.server.entities.AbstractEntity;
 import de.fh_dortmund.inf.cw.chat.server.entities.UserStatistic;
 
 @Entity
@@ -20,7 +21,7 @@ import de.fh_dortmund.inf.cw.chat.server.entities.UserStatistic;
 		@NamedQuery(name = "getNumberOfOnlineUser", query = "SELECT count(u.name) FROM ChatUser u WHERE u.online =true"),
 		@NamedQuery(name = "getNumberOfAllUser", query = "SELECT count(u.name) FROM ChatUser u"),
 		@NamedQuery(name = "getAllUser", query = "SELECT u FROM ChatUser u") })
-public class ChatUser implements Serializable {
+public class ChatUser extends AbstractEntity implements Serializable {
 
 	private static final long serialVersionUID = -3775255478452699913L;
 	@Id
