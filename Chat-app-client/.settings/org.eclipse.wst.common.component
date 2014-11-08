@@ -3,6 +3,7 @@
     <wb-module deploy-name="Chat-app-client">
         <wb-resource deploy-path="/" source-path="/appClientModule" tag="defaultRootSource"/>
         <wb-resource deploy-path="/" source-path="/src"/>
+        <wb-resource deploy-path="/" source-path="/test"/>
         <property name="java-output-path" value="/Chat-app-client/bin"/>
     </wb-module>
 </project-modules>

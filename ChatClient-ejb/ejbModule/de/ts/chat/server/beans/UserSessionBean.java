@@ -32,7 +32,7 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 		// TODO Auto-generated constructor stub
 	}
 
-	@Resource
+	@Resource(name = "hashAlgorithm")
 	private static String hashAlgorithm;
 
 	public static String generateHash(String plaintext) {

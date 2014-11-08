@@ -213,7 +213,7 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 		commonStatistic.userHasSendAMessage();
 	}
 
-	private String cleanUpMessage(String message) {
+	String cleanUpMessage(String message) {
 
 		List<String> meanWords = new ArrayList<>();
 		meanWords.add("fuck");
