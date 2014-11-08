@@ -94,7 +94,7 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 		consumer.setMessageListener(this);
 	}
 
-	private void notifyViaChatMessageQueue(String messageText, String sender,
+	void notifyViaChatMessageQueue(String messageText, String sender,
 			ChatMessageType type) {
 
 		if (jmsContext == null) {
@@ -103,6 +103,7 @@ public class ServiceHandlerImpl extends ServiceHandler implements
 
 		try {
 			Message message = jmsContext.createMessage();
+
 			message.setIntProperty("CHATMESSAGE_TYPE", type.ordinal());
 			message.setStringProperty("CHATMESSAGE_SENDER", sender);
 			message.setStringProperty("CHATMESSAGE_TEXT", messageText);
