@@ -1,9 +1,7 @@
 package de.ts.chat.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -19,6 +17,8 @@ import org.mockito.Mockito;
 
 import de.fh_dortmund.inf.cw.chat.server.entities.UserStatistic;
 import de.fh_dortmund.inf.cw.chat.server.shared.ChatMessageType;
+import de.ts.chat.server.beans.exception.InvalidLoginException;
+import de.ts.chat.server.beans.exception.MultipleLoginException;
 import de.ts.chat.server.beans.interfaces.CommonStatisticManagementRemote;
 import de.ts.chat.server.beans.interfaces.UserManagementRemote;
 import de.ts.chat.server.beans.interfaces.UserSessionRemote;
@@ -80,6 +80,37 @@ public class ServiceHandlerImplTest extends ChatTestCase {
 		super.beforeMethods();
 		doReturn(userName).when(userSessionMock).getUserName();
 
+	}
+
+	@Test(expected = InvalidLoginException.class)
+	public void testLoginWrongUsername() throws Exception {
+
+		doThrow(InvalidLoginException.class).when(userSessionMock).login(
+				userName, password);
+
+		classUnderTest.login(userName, password);
+		verifyZeroInteractions(userStatisticMock);
+		verifyZeroInteractions(commonStatisticMock);
+	}
+
+	@Test(expected = MultipleLoginException.class)
+	public void testLoginAlreadyLoggedIn() throws Exception {
+		doThrow(MultipleLoginException.class).when(userSessionMock).login(
+				userName, password);
+
+		classUnderTest.login(userName, password);
+
+		verify(producerMock).send(chatMessageTopicMock, messageMock);
+		verifyZeroInteractions(userStatisticMock);
+	}
+
+	@Test(expected = Exception.class)
+	public void testRegisterUserNameAlreadyTaken() throws Exception {
+		doThrow(Exception.class).when(userManagementMock).register(userName,
+				password);
+
+		classUnderTest.register(userName, password);
+		verifyZeroInteractions(producerMock);
 	}
 
 	@Test

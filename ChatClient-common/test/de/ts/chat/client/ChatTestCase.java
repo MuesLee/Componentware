@@ -31,10 +31,14 @@ public class ChatTestCase {
 		producerMock = mock(JMSProducer.class);
 		consumerMock = mock(JMSConsumer.class);
 
-		doReturn(messageMock).when(jmsContextMock).createMessage();
-		doReturn(producerMock).when(jmsContextMock).createProducer();
-		doReturn(consumerMock).when(jmsContextMock).createConsumer(
-				Mockito.any(Destination.class), Mockito.anyString());
+		if (jmsContextMock != null) {
+			doReturn(messageMock).when(jmsContextMock).createMessage();
+			doReturn(producerMock).when(jmsContextMock).createProducer();
+			doReturn(consumerMock).when(jmsContextMock).createConsumer(
+					Mockito.any(Destination.class), Mockito.anyString());
+
+		}
+
 		doReturn(producerMock).when(producerMock).send(chatMessageQueueMock,
 				messageMock);
 		doReturn(producerMock).when(producerMock).send(chatMessageTopicMock,
