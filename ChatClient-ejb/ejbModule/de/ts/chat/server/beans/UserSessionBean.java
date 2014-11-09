@@ -28,11 +28,7 @@ public class UserSessionBean implements UserSessionRemote, UserSessionLocal,
 	@EJB
 	private UserManagementLocal userManagementLocal;
 
-	public UserSessionBean() {
-		// TODO Auto-generated constructor stub
-	}
-
-	@Resource(name = "hashAlgorithm")
+	@Resource
 	private static String hashAlgorithm;
 
 	public static String generateHash(String plaintext) {
